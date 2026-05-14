@@ -1,0 +1,138 @@
+services:
+  claude:
+    build:
+      context: ${BACK2BASE_HOME}
+      dockerfile: Dockerfile
+      args:
+        BASE_IMAGE: ${BACK2BASE_BASE_IMAGE:-ramseymcgrath/back2base-base:latest}
+        TZ: ${TZ:-America/New_York}
+    stdin_open: true
+    tty: true
+
+    # Pin upstream resolvers. Docker Desktop's embedded resolver (127.0.0.11)
+    # otherwise forwards to the host's DNS chain, which on macOS can be brittle
+    # under VPNs/corporate DNS/negative-cache residue and was observed returning
+    # SERVFAIL for some ramseymcgrath.com subdomains while others resolved fine.
+    # Cloudflare + Google as explicit upstreams give us deterministic answers.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+
+    # NET_ADMIN for iptables firewall
+    cap_add:
+      - NET_ADMIN
+
+    volumes:
+      # Your repo — mounted at /workspace
+      - ${REPO_PATH:-.}:/workspace
+
+      # Claudebox-owned mutable state (mounted as the container user's ~/.claude)
+      - ${BACK2BASE_STATE}:/home/node/.claude
+
+      # Datadog MCP CLI state — separate mount because datadog-mcp expects
+      # ~/.config/datadog-mcp, not ~/.claude/datadog-mcp
+      - ${BACK2BASE_CONFIG}/datadog-mcp:/home/node/.config/datadog-mcp
+
+      # Shell history — bind to a host directory under state so history persists
+      # without an opaque named volume. The base image's HISTFILE is hardcoded
+      # to /commandhistory/.bash_history, so the mount target stays the same.
+      - ${BACK2BASE_STATE}/history:/commandhistory
+
+      # SSH keys for git (read-only)
+      - ${HOME}/.ssh:/home/node/.ssh:ro
+
+      # Git identity (read-only)
+      - ${HOME}/.gitconfig:/home/node/.gitconfig:ro
+
+      # NOTE: per-tool host config dirs (~/.aws, ~/.kube, ~/.config/gh)
+      # are added by the Go CLI via a generated compose override file
+      # (see compose.go:writeHostCredsOverride) — only when the host
+      # actually has each dir, so users without a tool don't get an
+      # empty config dir auto-created on the host. The override
+      # bind-mounts each at a sidecar path (.aws-host, .kube-host,
+      # .config/gh-host) read-only; entrypoint.sh copies into the
+      # canonical writable path so the CLIs can manage their own
+      # caches.
+
+      # Docker socket — allows claude to spawn MCP servers (e.g. Buildkite) via docker run.
+      # /var/run/docker.sock is resolved INSIDE the docker daemon (Lima VM for
+      # Colima, Desktop's VM, or the Linux host directly), so this single path
+      # works for every runtime. Do NOT change this to a macOS host path —
+      # Colima's Lima VM does not see paths under /Users/.../.colima/.
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    # Add the docker daemon's socket GID as a supplementary group on the node
+    # user so it can read /var/run/docker.sock without sudo. bin/back2base
+    # probes the active daemon at every launch (Colima → ~991 docker group,
+    # Docker Desktop → 0 root) and exports BACK2BASE_DOCKER_GID; the cache
+    # at $BACK2BASE_STATE/docker-gid is a fallback if the probe fails.
+    # Default 999 is the typical Debian/Ubuntu docker group GID, used only
+    # when neither the probe nor the cache produces a value.
+    group_add:
+      - "${BACK2BASE_DOCKER_GID:-999}"
+
+    environment:
+      # Auth — long-lived OAuth token from `back2base login`, or an API key.
+      # Source is the BACK2BASE_<NAME> variant only: the user's bare
+      # ANTHROPIC_API_KEY / CLAUDE_CODE_OAUTH_TOKEN / etc. (in their shell
+      # or in random tools' env files) is intentionally NOT picked up, so
+      # back2base can't accidentally inherit a credential the user meant
+      # for something else. The container still receives the unprefixed
+      # name because that's what Claude Code reads.
+      - CLAUDE_CODE_OAUTH_TOKEN=${BACK2BASE_CLAUDE_CODE_OAUTH_TOKEN:-}
+      - ANTHROPIC_API_KEY=${BACK2BASE_ANTHROPIC_API_KEY:-}
+      - ANTHROPIC_AUTH_TOKEN=${BACK2BASE_ANTHROPIC_AUTH_TOKEN:-}
+
+      # Cap the main claude process V8 heap. Without this, V8 sizes the heap
+      # relative to system RAM (up to ~12 GB on a 16 GB host), causing GC
+      # threads to consume disproportionate CPU at idle. 1 GB is ample for
+      # Claude Code's own footprint; override with BACK2BASE_CLAUDE_HEAP_MB.
+      - NODE_OPTIONS=--max-old-space-size=${BACK2BASE_CLAUDE_HEAP_MB:-1024}
+
+      # Optional model override (e.g. claude-opus-4-6, claude-haiku-4-5-20251001)
+      - BACK2BASE_MODEL=${BACK2BASE_MODEL:-}
+
+      # MCP server profile — controls which servers are enabled
+      - BACK2BASE_PROFILE=${BACK2BASE_PROFILE:-full}
+      - BACK2BASE_OVERVIEW=${BACK2BASE_OVERVIEW:-0}
+
+      # Host mount-source path for /workspace. Used by entrypoint.sh as the
+      # namespace-derivation fallback when /workspace lacks a git remote.
+      - REPO_PATH=${REPO_PATH:-}
+      - WORKSPACE_NAME=${WORKSPACE_NAME:-}
+      - CF_AIG_TOKEN=${CF_AIG_TOKEN:-}
+      - CUSTOM_API_HEADER=${CUSTOM_API_HEADER:-}
+      - ANTHROPIC_BASE_URL=${BACK2BASE_ANTHROPIC_BASE_URL:-}
+
+      # MCP server env
+      - TFC_TOKEN=${TFC_TOKEN:-}
+      - BUILDKITE_API_TOKEN=${BUILDKITE_API_TOKEN:-}
+
+      # GitHub
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+
+      # Datadog
+      - DD_API_KEY=${DD_API_KEY:-}
+      - DD_APPLICATION_KEY=${DD_APPLICATION_KEY:-}
+
+      # Context7
+      - CONTEXT7_API_KEY=${CONTEXT7_API_KEY:-}
+
+      # Brave Search
+      - BRAVE_API_KEY=${BRAVE_API_KEY:-}
+
+      # AWS
+      - AWS_PROFILE=${AWS_PROFILE:-default}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_DEFAULT_REGION=${AWS_REGION:-us-east-1}
+
+      # Firewall
+      - DISABLE_FIREWALL=${DISABLE_FIREWALL:-0}
+
+    deploy:
+      resources:
+        limits:
+          cpus: "${BACK2BASE_CPU_LIMIT:-4.0}"
+          memory: "${BACK2BASE_MEMORY_LIMIT:-8g}"
+
+    working_dir: /workspace

@@ -1,0 +1,148 @@
+{
+  "mcpServers": {
+    "terraform": {
+      "type": "stdio",
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "-e", "TFC_TOKEN", "hashicorp/terraform-mcp-server"],
+      "env": {
+        "TFC_TOKEN": "${TFC_TOKEN}"
+      },
+      "trusted": true,
+      "alwaysLoad": true
+    },
+    "context7": {
+      "type": "stdio",
+      "command": "context7-mcp",
+      "args": [],
+      "env": {
+        "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}",
+        "NODE_OPTIONS": "--max-old-space-size=128"
+      },
+      "trusted": true,
+      "alwaysLoad": true
+    },
+    "filesystem": {
+      "command": "mcp-server-filesystem",
+      "args": ["/workspace", "/repos"],
+      "env": {
+        "NODE_OPTIONS": "--max-old-space-size=64"
+      },
+      "trusted": true,
+      "alwaysLoad": true
+    },
+    "datadog": {
+      "type": "stdio",
+      "command": "/home/node/.local/bin/datadog_mcp_cli",
+      "args": [],
+      "env": {
+        "DD_API_KEY": "${DD_API_KEY}",
+        "DD_APP_KEY": "${DD_APPLICATION_KEY}"
+      },
+      "trusted": true,
+      "alwaysLoad": true
+    },
+    "github": {
+      "command": "mcp-server-github",
+      "args": [],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}",
+        "NODE_OPTIONS": "--max-old-space-size=128"
+      },
+      "trusted": true,
+      "alwaysLoad": true
+    },
+    "git": {
+      "command": "mcp-server-git",
+      "args": [],
+      "env": {
+        "MALLOC_TRIM_THRESHOLD_": "65536",
+        "PYTHONDONTWRITEBYTECODE": "1"
+      },
+      "trusted": true,
+      "alwaysLoad": true
+    },
+    "fetch": {
+      "command": "mcp-server-fetch",
+      "args": [],
+      "env": {
+        "MALLOC_TRIM_THRESHOLD_": "65536",
+        "PYTHONDONTWRITEBYTECODE": "1"
+      },
+      "trusted": true,
+      "alwaysLoad": true
+    },
+    "sequential-thinking": {
+      "type": "stdio",
+      "command": "mcp-server-sequential-thinking",
+      "args": [],
+      "env": {
+        "NODE_OPTIONS": "--max-old-space-size=64"
+      },
+      "trusted": true,
+      "alwaysLoad": true
+    },
+    "sqlite": {
+      "command": "mcp-server-sqlite",
+      "args": ["/workspace/data/scratch.db"],
+      "env": {
+        "MALLOC_TRIM_THRESHOLD_": "65536",
+        "PYTHONDONTWRITEBYTECODE": "1"
+      },
+      "trusted": true,
+      "alwaysLoad": true
+    },
+    "brave-search": {
+      "type": "stdio",
+      "command": "mcp-server-brave-search",
+      "args": [],
+      "env": {
+        "BRAVE_API_KEY": "${BRAVE_API_KEY}",
+        "NODE_OPTIONS": "--max-old-space-size=64"
+      },
+      "trusted": true,
+      "alwaysLoad": true
+    },
+    "lsmcp": {
+      "type": "stdio",
+      "command": "lsmcp",
+      "args": ["-p", "tsgo"],
+      "env": {
+        "NODE_OPTIONS": "--max-old-space-size=256"
+      },
+      "trusted": true,
+      "alwaysLoad": true
+    },
+    "godevmcp": {
+      "type": "stdio",
+      "command": "godevmcp",
+      "args": ["serve"],
+      "trusted": true,
+      "alwaysLoad": true
+    },
+    "kubernetes": {
+      "command": "mcp-server-kubernetes",
+      "args": [],
+      "env": {
+        "NODE_OPTIONS": "--max-old-space-size=128"
+      },
+      "trusted": true,
+      "alwaysLoad": true
+    },
+    "aws-knowledge": {
+      "type": "http",
+      "url": "https://knowledge-mcp.global.api.aws",
+      "trusted": true,
+      "alwaysLoad": true
+    },
+    "buildkite": {
+      "type": "stdio",
+      "command": "docker",
+      "args": ["run", "-q", "-i", "--rm", "-e", "BUILDKITE_API_TOKEN", "buildkite/mcp-server", "stdio"],
+      "env": {
+        "BUILDKITE_API_TOKEN": "${BUILDKITE_API_TOKEN}"
+      },
+      "trusted": true,
+      "alwaysLoad": true
+    }
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "hooks": [
+    {
+      "name": "claude-md-audit-trigger",
+      "event": "UserPromptSubmit",
+      "command": "/opt/back2base/hooks/claude-md-audit-trigger.sh",
+      "timeout": 5,
+      "kill_switch": "BACK2BASE_HOOK_CLAUDE_MD_AUDIT",
+      "handler": "command",
+      "description": "If thresholds suggest CLAUDE.md may be stale and no cooldown blocks, appends an audit suggestion to pending.md."
+    },
+    {
+      "name": "power-steering-drain",
+      "event": "UserPromptSubmit",
+      "command": "/opt/back2base/hooks/power-steering-drain.sh",
+      "timeout": 5,
+      "kill_switch": "BACK2BASE_HOOK_POWER_STEERING_DRAIN",
+      "handler": "command",
+      "description": "Drains /run/back2base/power-steering/pending.md into additionalContext; truncates after read."
+    },
+    {
+      "name": "power-steering-tick",
+      "event": "PostToolUse",
+      "matcher": "",
+      "command": "/opt/back2base/hooks/power-steering-tick.sh",
+      "timeout": 1,
+      "kill_switch": "BACK2BASE_HOOK_POWER_STEERING_TICK",
+      "handler": "command",
+      "description": "Touches /run/back2base/power-steering/.tick so the daemon wakes only on real tool activity."
+    },
+    {
+      "name": "claude-md-audit-tally",
+      "event": "PostToolUse",
+      "matcher": "",
+      "command": "/opt/back2base/hooks/claude-md-audit-tally.sh",
+      "timeout": 2,
+      "kill_switch": "BACK2BASE_HOOK_CLAUDE_MD_AUDIT",
+      "handler": "command",
+      "description": "Appends Edit/Write/MultiEdit events to edits.jsonl for the staleness-audit heuristic."
+    },
+    {
+      "name": "ddog-eval-tooluse",
+      "event": "PostToolUse",
+      "matcher": "",
+      "command": "/opt/back2base/hooks/ddog-eval-tooluse.sh",
+      "timeout": 1,
+      "kill_switch": "BACK2BASE_HOOK_DDOG_LLM_EVALS",
+      "handler": "command",
+      "description": "Accumulates per-turn tool-call counters for the Datadog efficiency evaluator."
+    },
+    {
+      "name": "ddog-eval-stop",
+      "event": "Stop",
+      "command": "/opt/back2base/hooks/ddog-eval-stop.sh",
+      "timeout": 2,
+      "kill_switch": "BACK2BASE_HOOK_DDOG_LLM_EVALS",
+      "handler": "command",
+      "description": "Queues a backgrounded Python worker that submits four custom Datadog LLM Observability evaluations for the just-finished turn (skill_choice, memory_hygiene, efficiency, answer_quality)."
+    }
+  ]
+}

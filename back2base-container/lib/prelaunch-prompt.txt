@@ -1,0 +1,33 @@
+You are doing a one-shot orientation scan of the repository at the current
+working directory. Produce a concise markdown overview (200-400 words) that
+helps a new contributor or AI assistant understand the project quickly.
+
+Cover, in this order:
+
+## What this is
+One paragraph. Project name (from package.json / pyproject.toml / go.mod /
+Cargo.toml / README), what it does, who it's for.
+
+## Layout
+A short list of top-level directories with one-line descriptions of each.
+Skip irrelevant ones (.git, node_modules, dist, build, .venv, target).
+
+## Tech stack
+Languages, frameworks, build tools. The build/test/lint commands from
+Makefile, package.json scripts, pyproject.toml, etc.
+
+## Recent activity
+The last 5 commit subjects from `git log --oneline -5`. Active branches
+worth knowing about. Anything in CHANGELOG.md / RELEASES.md from the last
+few entries.
+
+## Watch out for
+Anything unusual a contributor should know up-front: nonstandard layouts,
+custom build steps, generated code that shouldn't be edited, deprecated
+areas. Two or three bullet points max.
+
+Use only Read, Glob, Grep, and Bash (read-only commands like ls, cat, git
+log, head). Do NOT modify any files. Do NOT call MCP tools.
+
+Output ONLY the markdown — no preamble, no "Here is the overview:", no
+trailing chatter. Start directly with `## What this is`.

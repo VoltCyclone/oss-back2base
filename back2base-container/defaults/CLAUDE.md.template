@@ -1,0 +1,151 @@
+# CLAUDE.md — back2base container instructions
+
+> Generated at container start. Edit `defaults/CLAUDE.md.template` in the
+> back2base repo to change the static sections; the dynamic sections
+> (MCP servers, slash commands) are rebuilt automatically.
+
+## Environment
+
+You are running inside **back2base**, a sandboxed Docker container.
+All permissions are bypassed — the container IS the security boundary.
+
+- **OS**: Debian (node base image)
+- **User**: `node` (non-root, sudo only for firewall)
+- **Network**: Outbound firewall (iptables) — only whitelisted domains reachable
+- **Permissions**: `--dangerously-skip-permissions` is active
+
+Use `which <tool>` or `<tool> --version` to check what's installed.
+If a firewall rule blocks a download, tell the user which domain to add to `init-firewall.sh`.
+
+## Claude 4.7 features
+
+This session is pinned to **Opus 4.7 with the 1M-context variant** (`claude-opus-4-7[1m]`) unless the active profile is `minimal` or the user sets `BACK2BASE_MODEL`. The guidance below assumes that target; fall back to 4.6-style habits only when the user explicitly downgrades.
+
+- **1M context window.** Large codebases, long transcripts, and multi-file diffs fit without compaction. Prefer reading whole files to grepping fragments when you need to reason about structure. Batch related reads in one turn — the 1M window removes the "save tokens by staying small" instinct.
+- **Extended thinking.** Reach for it when the problem has cascading unknowns, cross-file invariants, or a design decision with tradeoffs. Skip it for mechanical edits, single-file bugs, or tasks with a clear action list. Do not narrate your thinking in text output — keep thought content in the thinking block.
+- **Fast mode (`/fast`).** Drops the session to Opus 4.6 with faster streaming. Useful for tight iteration loops (shell one-liners, small edits). Re-enable the 4.7[1m] target with `/model claude-opus-4-7[1m]` when you need deep reasoning or long context.
+- **Parallel tool use.** 4.7 dispatches parallel tool calls well. When you have independent reads/searches, emit them in a single assistant turn — do not serialize. Sequential calls are only for true dependencies (B needs A's output).
+- **Subagents — research first, code second.** Default to dispatching a subagent (`Agent` with `subagent_type=Explore` or `Plan`) for *any* unfamiliar code, multi-file question, or task you can't answer from files already read in this session. Trading 30–60s of latency for a calibrated read of the codebase is the right exchange almost always. Direct Read/Grep is for code you've already touched in this turn or for surgical single-file work. Parallelism and context hygiene are bonuses; the primary reason to spawn a subagent is **so you stop guessing**.
+- **Self-paced loops.** If invoked in a dynamic `/loop`, respect the 5-minute prompt-cache TTL when picking sleep durations: stay under 270s to keep the cache warm, or jump to 1200s+ when the wait is genuinely long. Avoid ~300s — you pay the cache miss without amortizing it.
+
+## Workflow
+
+On your FIRST response to the user, before taking any action:
+
+1. **Classify** the task (code, debug, refactor, research, infra, review, other).
+2. **Route** — list which of your available MCP tools are relevant to this task.
+3. **Plan** — for anything beyond a one-file mechanical edit, state your plan in 2-4 sentences: which files you'll touch, in what order, how you'll verify. If the task spans unfamiliar code, **dispatch an Explore or Plan subagent first** to ground the plan in the actual codebase — do not guess from filenames or memory. For non-trivial tasks (multi-file changes, infra mutations, anything destructive), wait for user confirmation before proceeding.
+4. **Execute** — prefer MCP tools over shell commands when a tool covers the domain. Fire parallel MCP lookups when a task spans multiple domains. Spawn subagents (one per domain) for independent subtasks.
+5. **Verify** — after every mutation, run the relevant check (test, build, lint, diff). Never claim "fixed", "done", "passing", or "working" without a tool_result that demonstrates it. Saying "I verified this" is not verification — running the test is.
+
+Do not ask which workflow to use. Assess the task and act.
+**The cheapest mistake is dispatching a subagent for research you didn't strictly need; the most expensive is editing code you didn't read.** When in doubt, spawn the subagent.
+
+### Power-steering supervisor
+
+A separate watcher process reviews this session's transcript asynchronously every few tool calls. If it sees evidence of drift — guessing without reading, acting without planning, claiming done without verification, tangent drift, repeated-fix loops — it injects a `## Power-steering: drift detected` block as a `<system-reminder>` on a future user turn. Treat that injection as a real signal: stop, re-read the cited evidence, and course-correct. It defaults to silence and only fires on quotable transcript evidence, so a flag is high-signal. Logs are at `/run/back2base/power-steering/power-steering.log`; disable with `BACK2BASE_POWER_STEERING=off`.
+
+### CLAUDE.md staleness audit
+
+Alongside drift detection, power-steering periodically suggests running `/revise-claude-md` (from the `claude-md-management` plugin) to audit this CLAUDE.md against the current project state. The suggestion is edit-driven — it fires after enough file edits have landed in the session, especially edits to files referenced in CLAUDE.md or to structural files like `Makefile`/`Dockerfile`/`go.mod`. Suggestions defer while drift is being handled and won't repeat for ~10 minutes. Disable with `BACK2BASE_HOOK_CLAUDE_MD_AUDIT=off`.
+
+## Memory
+
+**Save memories autonomously. Do not wait to be asked.** When you learn something that would help a future session, write it in the same turn — not at session end, not on user request. If you notice a save-worthy signal and skip it, that's a bug; the file is reversible, the lost context isn't.
+
+### Save whenever you see
+
+- A fact about the user (role, stack, team, goals, constraints).
+- A correction (*"no, don't do X"*) or a validation (*"yes, that was the right call"*) — both count. Save the **why**, not just the rule.
+- A project-level decision or motivation that isn't in `git log` (e.g. *"we're rewriting auth because legal flagged token storage"*).
+- A pointer to an external system (Linear project, Grafana board, Slack channel, dashboard, named service).
+- A non-obvious constraint, deadline, dependency, or workaround.
+
+If the user says "remember this" or "save X", treat that as one case among many — not the only case. Autonomy is the default.
+
+### How saves land — use the file-based path by default
+
+Use the `Write` tool to create a file at `~/.claude/projects/$MEMORY_NAMESPACE/memory/<slug>_<YYYY-MM-DD>_<hash>.md`, where:
+
+- `<slug>` is a short kebab- or snake-case name for the topic (e.g. `user_role`, `feedback_testing`, `auth0_tenant_setup`).
+- `<YYYY-MM-DD>` is today's UTC date — get it via `date -u +%F`.
+- `<hash>` is the first 8 chars of the sha256 of the body you're about to write — `printf '%s' "$body" | shasum -a 256 | head -c 8`.
+
+The date+hash suffix means successive saves on the same topic land in distinct files when content differs and collapse to one file when it doesn't, so re-saves never silently overwrite. Old siblings (`<slug>_*_*.md`) stay where they are — leave them alone unless explicitly cleaning up.
+
+Also append a one-line pointer to `MEMORY.md` in the same directory: `- [Title](<full-filename>.md) — one-line hook` (≤ ~150 chars). The index is what makes the long filenames browsable.
+
+This local directory is the only memory store in the OSS build. There is no cloud sync — your memories live with the workspace.
+
+### What NOT to save
+
+- Code patterns, conventions, architecture, file paths — derivable from the current project state.
+- Git history, recent changes, who-changed-what — `git log` / `git blame` are authoritative.
+- Debug solutions or fix recipes — the fix is in the code; the commit has the why.
+- Anything already stated in this CLAUDE.md.
+- Ephemeral task state: in-progress work, temporary context, current-conversation scratchpad.
+
+These apply even when the user asks to save. If they ask you to save a PR list or activity summary, ask what was *surprising* or *non-obvious* — that's the keepable part.
+
+### Reading: `recall` at warmup, sparingly after
+
+- **Warmup, once per session.** Issue one broad `recall` with a short query describing the task and `limit: 20`. With 1M context, a generous pre-fetch beats per-turn refetches — repeated `recall` calls inside a warm session bust the prompt cache for no new information.
+- **Refetch** only when the task shifts domains or the user references prior work you didn't surface.
+- **UserPromptSubmit hook** pre-fetches per-turn on its own. Don't manually `recall` every turn — but do call it when you need a specific past decision the hook missed.
+- **Before acting on a recalled claim** (a file path, function, flag, or config), verify it still exists with a read/grep. Memory is a snapshot at write time; trust what you observe now, and update or remove the stale entry.
+
+### Namespace
+
+Auto-detected from the git remote of `/workspace`; falls back to `basename /workspace`. Override with `MEMORY_NAMESPACE`. If memories feel scoped wrong, `echo $MEMORY_NAMESPACE` inside the container to verify.
+
+## Workspace layout
+
+| Path | Purpose |
+|---|---|
+| `/workspace` | Primary repo mount |
+| `/repos` | Additional repo mounts |
+| `~/.claude/skills/` | Skills (persisted in state mount) |
+| `~/.claude/commands/` | Slash commands (persisted in state mount) |
+| `~/.claude/CLAUDE.md` | This file — assembled at container start; do not edit during a turn |
+| `/opt/back2base/` | Shipped renderers, daemons, hooks (read-only). Inspect when debugging container internals (e.g. `cat /opt/back2base/render-claude-md.py`) |
+
+### In-container tooling
+
+| Tool | What it is |
+|---|---|
+| `/fast` | Slash command — drops to Opus 4.6 for tight iteration; `/model claude-opus-4-7[1m]` to return |
+| `recall <query>` | Memory MCP tool — search past memories from R2 (the authoritative read path; the local `memory/` dir is write-only) |
+| `claude --version` | Confirm which Claude Code build the container shipped with |
+
+## Prompt caching and cache blocks
+
+Claude 4.7 caches the request prefix for 5 minutes. Every cache hit is a ~10× input-cost discount and a latency win, so session hygiene here is load-bearing. This CLAUDE.md is structured as three cache segments — protect the boundaries:
+
+1. **Stable system segment**: environment, workflow, memory rules, workspace layout. Byte-identical across sessions in the same image version. Do not inject timestamps, hostnames, PIDs, or session IDs anywhere in the template.
+2. **Stable tool segment**: the MCP server list, slash-command list, and profile-specific guidance, rendered at container start from `mcp.json`, `~/.claude/commands/`, and the active profile snippet. The tool list is **locked at session start** — do NOT dynamically add or remove MCP servers mid-session, and do NOT edit `mcp.json` during a session. Both break the tool-list cache for every subsequent turn.
+3. **Volatile conversation segment**: the running transcript. Everything that changes per turn lives here and only here.
+
+Operational rules that keep the prefix cached:
+
+- **Batch parallel tool calls.** Independent reads, greps, and MCP lookups in one turn share the cached prefix. Serializing them across turns pays the prefix cost repeatedly.
+- **Don't edit this CLAUDE.md mid-turn.** The system itself rewrites it pre-session (skill preplan in Phase 6.5, optional repo overview in Phase 7) — that's expected and lands before your first user message. If you genuinely need a new rule for future sessions, tell the user and let them restart.
+- **Keep recall queries broad at warmup, thin after.** See the memory section — one wide `recall` beats several narrow ones.
+- **Mind the 5-minute TTL.** If you're waiting on something (build, deploy, long shell), stay under 270s between turns or commit to a long wait (1200s+). ~300s is the worst case: a cache miss with no amortization.
+- **Fast mode (`/fast`)** uses a separate cache namespace from `claude-opus-4-7[1m]`. Switching mid-session starts a cold cache — do it at natural breakpoints only.
+
+## MCP tool routing
+
+Always prefer MCP tools over general knowledge or shell commands when a tool covers the domain.
+**Never fall back to general knowledge when a tool can provide a factual answer.**
+
+<!-- @GENERATED:MCP_SERVERS -->
+
+If a tool is listed above but fails (missing env var, Docker error), tell the user which tool failed and why rather than silently falling back.
+
+## Skills and commands
+
+Skills invoke automatically when a trigger matches. Type `/` to see available slash commands.
+
+<!-- @GENERATED:COMMANDS -->
+
+<!-- @GENERATED:PROFILE_GUIDE -->
