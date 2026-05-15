@@ -114,7 +114,6 @@ Auto-detected from the git remote of `/workspace`; falls back to `basename /work
 | Tool | What it is |
 |---|---|
 | `/fast` | Slash command — drops to Opus 4.6 for tight iteration; `/model claude-opus-4-7[1m]` to return |
-| `recall <query>` | Memory MCP tool — search past memories from R2 (the authoritative read path; the local `memory/` dir is write-only) |
 | `claude --version` | Confirm which Claude Code build the container shipped with |
 
 ## Prompt caching and cache blocks

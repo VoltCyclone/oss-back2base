@@ -17,12 +17,10 @@ COPY --chown=node:node defaults/settings.json /opt/back2base/defaults/settings.j
 COPY --chown=node:node defaults/hooks.json /opt/back2base/defaults/hooks.json
 
 # Copy default skills bundle into the image. Used by entrypoint's
-# seed_skills_if_missing as the offline first-install fallback when
-# CLAUDEBOX_CLOUD_SYNC is off OR the cloud is unreachable on first run.
+# seed_skills_if_missing as the first-install fallback.
 COPY --chown=node:node skills/ /opt/back2base/defaults/skills/
 
-# Copy default slash commands. Seeded to ~/.claude/commands/ on first run;
-# may be replaced by cloud sync on subsequent starts.
+# Copy default slash commands. Seeded to ~/.claude/commands/ on first run.
 COPY --chown=node:node commands/ /opt/back2base/defaults/commands/
 
 # Copy CLAUDE.md template. Assembled into ~/.claude/CLAUDE.md at every

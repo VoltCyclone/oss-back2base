@@ -10,8 +10,8 @@ If the supervisor reports drift, writes the finding to
 that content as a system-reminder on the next user turn and truncates
 the file.
 
-Designed as a sibling to memory-mcp-watcher and session-snapshot — same
-shape, same log convention. Stdlib only (no anthropic SDK dependency).
+Designed as a sibling to session-snapshot — same shape, same log
+convention. Stdlib only (no anthropic SDK dependency).
 
 Configuration (env vars; sensible defaults):
   BACK2BASE_POWER_STEERING  "off" / "0" / "false" disables the daemon
@@ -39,14 +39,8 @@ Configuration (env vars; sensible defaults):
 
 Auth (mirrors what Claude Code itself sends; daemon idles if no creds):
 
-  Layer 1 — back2base proxy identity (when ANTHROPIC_BASE_URL points
-  at the proxy, which entrypoint.sh sets it to by default):
-    CLAUDEPROXY_SERVICE_TOKEN     → x-service-auth: <token>
-    BACK2BASE_CONFIG_BYPASS_HEADER → x-claude-proxy-bypass: <value>
-  Mandatory in proxy deployments — without x-service-auth the proxy
-  returns 401 regardless of any Anthropic credential supplied.
-
-  Layer 2 — Anthropic credential (forwarded by the proxy in
+  Anthropic credential (forwarded directly, since the OSS build has no
+  proxy in front of api.anthropic.com):
   pass-through mode, or used directly when no proxy):
     ANTHROPIC_API_KEY        → x-api-key: <key>
     ANTHROPIC_AUTH_TOKEN     → Authorization: Bearer <token>
@@ -58,8 +52,7 @@ Auth (mirrors what Claude Code itself sends; daemon idles if no creds):
 Routing:
   ANTHROPIC_BASE_URL is honored. The host-side
   BACK2BASE_ANTHROPIC_BASE_URL is the only source — compose forwards
-  it as the unprefixed name. entrypoint.sh defaults it to the
-  back2base proxy URL when unset.
+  it as the unprefixed name. Defaults to api.anthropic.com when unset.
 
 Runtime overrides (hot-reloaded each poll):
   ~/.claude/power-steering/config.json may set any of {model,
@@ -86,10 +79,8 @@ import urllib.request
 import uuid
 from pathlib import Path
 
-# Identifies this daemon to back2base's gateway-proxy worker, which
-# attaches it to the OTel span emitted for every supervisor /v1/messages
-# call. Bumped only when the daemon's request shape or telemetry schema
-# changes — not on every back2base release.
+# Identifies this daemon in OTel spans (when an endpoint is configured).
+# Bumped only when the daemon's request shape or telemetry schema changes.
 TELEMETRY_SOURCE = "power-steering"
 TELEMETRY_VERSION = "1"
 
@@ -100,20 +91,12 @@ TELEMETRY_VERSION = "1"
 SESSION_ID = (os.environ.get("BACK2BASE_TELEMETRY_SESSION_ID", "").strip()
               or uuid.uuid4().hex)
 
-# OTel: ship spans to otel.back2base.net via OTLP/HTTP + mTLS. Cert + key
-# arrive in the image at /opt/back2base/certs/ from the release pipeline
-# (see .github/workflows/release.yml + back2base-container/certs/README.md).
-# Disabled gracefully when:
-#   - opentelemetry packages aren't installed (older base image)
-#   - cert/key files are missing (local builds without CI secrets)
-#   - BACK2BASE_OTEL=off
-# Override paths for tests via BACK2BASE_OTEL_CERT / BACK2BASE_OTEL_KEY.
-OTEL_CERT_PATH = Path(
-    os.environ.get("BACK2BASE_OTEL_CERT", "/opt/back2base/certs/client.cert.pem"),
-)
-OTEL_KEY_PATH = Path(
-    os.environ.get("BACK2BASE_OTEL_KEY", "/opt/back2base/certs/client.key.pem"),
-)
+# OTel: optional. Set BACK2BASE_OTEL_ENDPOINT to an OTLP/HTTP collector URL
+# to enable. Optional mTLS via BACK2BASE_OTEL_CERT / BACK2BASE_OTEL_KEY.
+# Disabled gracefully when opentelemetry packages aren't installed, when
+# no endpoint is set, or when BACK2BASE_OTEL=off.
+OTEL_CERT_PATH = Path(os.environ.get("BACK2BASE_OTEL_CERT", ""))
+OTEL_KEY_PATH = Path(os.environ.get("BACK2BASE_OTEL_KEY", ""))
 OTEL_ENDPOINT = os.environ.get("BACK2BASE_OTEL_ENDPOINT", "")
 _TELEMETRY_INITIALIZED = False
 
@@ -172,9 +155,8 @@ def init_telemetry():
     if not OTEL_ENDPOINT:
         log("otel: no BACK2BASE_OTEL_ENDPOINT set; telemetry disabled")
         return False
-    if not OTEL_CERT_PATH.exists() or not OTEL_KEY_PATH.exists():
-        log(f"otel: cert/key missing under {OTEL_CERT_PATH.parent}; telemetry disabled")
-        return False
+    mtls_enabled = bool(str(OTEL_CERT_PATH)) and bool(str(OTEL_KEY_PATH)) \
+        and OTEL_CERT_PATH.exists() and OTEL_KEY_PATH.exists()
     try:
         from opentelemetry import trace as otel_trace
         from opentelemetry.sdk.resources import Resource
@@ -187,15 +169,14 @@ def init_telemetry():
         log(f"otel: SDK import failed ({e}); telemetry disabled")
         return False
     try:
-        exporter = OTLPSpanExporter(
-            endpoint=f"{OTEL_ENDPOINT.rstrip('/')}/v1/traces",
-            client_certificate_file=str(OTEL_CERT_PATH),
-            client_key_file=str(OTEL_KEY_PATH),
-        )
+        exporter_kwargs = {"endpoint": f"{OTEL_ENDPOINT.rstrip('/')}/v1/traces"}
+        if mtls_enabled:
+            exporter_kwargs["client_certificate_file"] = str(OTEL_CERT_PATH)
+            exporter_kwargs["client_key_file"] = str(OTEL_KEY_PATH)
+        exporter = OTLPSpanExporter(**exporter_kwargs)
         resource = Resource.create({
             "service.name": TELEMETRY_SOURCE,
             "service.version": TELEMETRY_VERSION,
-            "back2base.source": TELEMETRY_SOURCE,
             "back2base.session": SESSION_ID,
             "back2base.user_id": os.environ.get("MEMORY_USER_ID", ""),
         })
@@ -386,44 +367,22 @@ def build_request_target():
     rides the exact same auth path the user's interactive session uses.
     Two layers, stacked when both are available:
 
-    1. back2base proxy identity (when ANTHROPIC_BASE_URL points at the
-       proxy — which entrypoint.sh sets it to by default):
-         x-service-auth:        <CLAUDEPROXY_SERVICE_TOKEN>
-         x-claude-proxy-bypass: <BACK2BASE_CONFIG_BYPASS_HEADER or "back2base">
-       The proxy worker rejects /v1/messages without `x-service-auth`,
-       so this layer is mandatory in proxy deployments.
+    Anthropic credential probed in order:
+      ANTHROPIC_API_KEY         → x-api-key
+      ANTHROPIC_AUTH_TOKEN      → Authorization: Bearer
+      CLAUDE_CODE_OAUTH_TOKEN   → Authorization: Bearer
+    Each name is read from the container's process env (the unprefixed
+    form), populated by docker-compose from the matching BACK2BASE_<NAME>
+    host-side variable.
 
-    2. Anthropic credential (forwarded as-is by the proxy in
-       pass-through mode, or used directly when ANTHROPIC_BASE_URL is
-       unset). Probed in order:
-         ANTHROPIC_API_KEY         → x-api-key
-         ANTHROPIC_AUTH_TOKEN      → Authorization: Bearer
-         CLAUDE_CODE_OAUTH_TOKEN   → Authorization: Bearer
-       Each name is read from the container's process env (the
-       unprefixed form), populated by docker-compose from the matching
-       BACK2BASE_<NAME> host-side variable. The BACK2BASE_ prefix is
-       the only source the host honors.
-
-    Returns (url, headers, mode) on success or (None, None, None) if
-    no auth is configured. `mode` is "proxy" when x-service-auth is
-    sent, "direct" otherwise — informational only, used for logging.
+    Returns (url, headers, mode) on success or (None, None, None) if no
+    auth is configured. `mode` is always "direct" in the OSS build.
     """
     base = (_env_with_prefix("ANTHROPIC_BASE_URL")
             or DEFAULT_API_BASE).rstrip("/")
     url = f"{base}/v1/messages"
     headers = {}
 
-    # Layer 1: back2base proxy identity.
-    svc = _env_with_prefix("CLAUDEPROXY_SERVICE_TOKEN")
-    if svc:
-        headers["x-service-auth"] = svc
-        # BACK2BASE_CONFIG_BYPASS_HEADER is back2base-owned (no upstream
-        # counterpart), so a plain getenv is correct.
-        bypass = os.environ.get("BACK2BASE_CONFIG_BYPASS_HEADER", "back2base").strip()
-        if bypass:
-            headers["x-claude-proxy-bypass"] = bypass
-
-    # Layer 2: Anthropic credential.
     api_key = _env_with_prefix("ANTHROPIC_API_KEY")
     if api_key:
         headers["x-api-key"] = api_key
@@ -436,16 +395,7 @@ def build_request_target():
     if not headers:
         return None, None, None
 
-    # Layer 3: telemetry identity. Read by the gateway-proxy worker and
-    # attached to the OTel span it emits for every /v1/messages call.
-    # Set unconditionally — even on auth misconfiguration we want the
-    # 4xx visible in observability tagged correctly.
-    headers["x-back2base-source"] = TELEMETRY_SOURCE
-    headers["x-back2base-version"] = TELEMETRY_VERSION
-    headers["x-back2base-session"] = SESSION_ID
-
-    mode = "proxy" if "x-service-auth" in headers else "direct"
-    return url, headers, mode
+    return url, headers, "direct"
 
 
 # --- logging ---------------------------------------------------------
@@ -1139,8 +1089,8 @@ def main():
         return
     url, headers, mode = build_request_target()
     if headers is None:
-        log("no auth env var set (CLAUDEPROXY_SERVICE_TOKEN / ANTHROPIC_API_KEY / "
-            "ANTHROPIC_AUTH_TOKEN / CLAUDE_CODE_OAUTH_TOKEN); daemon idle")
+        log("no auth env var set (ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN / "
+            "CLAUDE_CODE_OAUTH_TOKEN); daemon idle")
         return
     if not NS:
         log("MEMORY_NAMESPACE not set; daemon idle")

@@ -112,11 +112,9 @@ if [ -d /repos ]; then
   fi
 fi
 
-# Memory MCP namespace detection. The dockerized memory-mcp-proxy runs as a
-# sibling container and can't see /workspace, so it can't run its own
-# auto-detection (git remote → /repos scan → basename /workspace). Compute
-# the namespace once here and pass it through via -e MEMORY_NAMESPACE in
-# defaults/mcp.json. User-supplied MEMORY_NAMESPACE always wins.
+# Memory namespace detection. Auto-derived from the workspace identity:
+# git remote basename → /repos scan → basename /workspace. User-supplied
+# MEMORY_NAMESPACE always wins.
 # (Must stay in parent shell so MEMORY_NAMESPACE is exported for downstream.)
 if [ -z "${MEMORY_NAMESPACE:-}" ] && [ -d /workspace ]; then
   # WORKSPACE_NAME is the canonical project identity — set by the back2base
@@ -167,8 +165,7 @@ _phase2_workspace_setup() {
   # Two paths are involved and they MUST point at the same physical files:
   #
   #   1. The "namespaced" path under MEMORY_NAMESPACE (human-friendly, derived
-  #      from the git remote basename, e.g. ~/.claude/projects/back2base/memory).
-  #      The push/pull daemon and the cloud sync code operate on this path.
+  #      from the git remote basename, e.g. ~/.claude/projects/myrepo/memory).
   #
   #   2. Claude Code's auto-memory path, which it derives from the current
   #      working directory by replacing every '/' with '-'
@@ -176,7 +173,7 @@ _phase2_workspace_setup() {
   #      where Claude Code reads MEMORY.md from at session start and writes
   #      new memories to during the session.
   #
-  # Without alignment, memories pulled from the cloud land in (1) but Claude
+  # Without alignment, memories saved under (1) land outside what Claude
   # Code only reads (2) — they ships past each other and "memory doesn't
   # load". We make (1) the canonical store and symlink (2) → (1). If a user
   # already has real files at (2) from a previous version, migrate them into
@@ -281,9 +278,6 @@ fi
 # Seed user-state config files from image defaults. Only writes if the
 # target doesn't already exist — user customizations are preserved across
 # container runs. Defaults live inside the image at /opt/back2base/defaults/.
-# Runs AFTER cloud_sync has been reaped so we don't race on .mcp.json /
-# settings.json writes; if cloud_sync produced files, seed_if_missing is a
-# no-op.
 seed_if_missing() {
   local default_path="$1" target_path="$2"
   if [ ! -e "$target_path" ] && [ -e "$default_path" ]; then
@@ -297,8 +291,7 @@ mkdir -p "$HOME/.claude"
 
 # ── Phase 2.5: Seeding settings + MCP defaults ──────────────────────────────
 # Runs BEFORE MCP profile filtering (phase 3) so the filter has a file to
-# operate on. seed_if_missing is a no-op when cloud_sync already wrote the
-# target; this is the offline fallback only.
+# operate on.
 _phase2_5_seed_settings() {
   seed_if_missing /opt/back2base/defaults/mcp.json      "$HOME/.claude/.mcp.json"
   seed_if_missing /opt/back2base/defaults/settings.json "$HOME/.claude/settings.json"
@@ -408,12 +401,9 @@ pull_mcp_images() {
 
 _phase "Pulling MCP server images" pull_mcp_images
 
-# Skills now live directly inside the persistent state dir at
-# ~/.claude/skills. They are managed by:
-#   1. cloud_sync (above) — replaces them on every start when the cloud
-#      is reachable AND BACK2BASE_CLOUD_SYNC=1
-#   2. seed_skills_if_missing (below) — first-install fallback that copies
-#      from the image-baked default at /opt/back2base/defaults/skills/
+# Skills live directly inside the persistent state dir at ~/.claude/skills.
+# On first install, seed_skills_if_missing copies the image-baked defaults
+# from /opt/back2base/defaults/skills/. After that the user owns the tree.
 seed_skills_if_missing() {
   if [ ! -d "$HOME/.claude/skills" ] || [ -z "$(ls -A "$HOME/.claude/skills" 2>/dev/null)" ]; then
     if [ -d /opt/back2base/defaults/skills ]; then
@@ -428,8 +418,8 @@ seed_skills_if_missing() {
   fi
 }
 
-# Commands live at ~/.claude/commands/ — seeded from image defaults the same
-# way skills are. cloud_sync may replace them; the seed is the offline fallback.
+# Commands live at ~/.claude/commands/ — seeded from image defaults on first
+# install, then user-owned.
 seed_commands_if_missing() {
   if [ ! -d "$HOME/.claude/commands" ] || [ -z "$(ls -A "$HOME/.claude/commands" 2>/dev/null)" ]; then
     if [ -d /opt/back2base/defaults/commands ]; then
@@ -459,8 +449,7 @@ seed_plugins_if_missing() {
 
 # ── Phase 5: Seeding image defaults ─────────────────────────────────────────
 # Skills, commands, and plugins are seeded AFTER image pulls (phase 4) so we
-# don't race on directories that might be populated by cloud_sync or the
-# pulled images themselves.
+# don't race on directories that might be populated by the pulled images.
 _phase5_seed_image_defaults() {
   seed_skills_if_missing
   seed_commands_if_missing
