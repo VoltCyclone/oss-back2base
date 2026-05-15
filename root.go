@@ -21,9 +21,9 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "oss-back2base [flags] [prompt]",
 	Short: "Containerized Claude Code (OSS)",
-	Long: `oss-back2base runs Claude Code in a Docker container with curated MCP
-servers, network isolation, and persistent state. OSS build: no proxy,
-no cloud config sync, no remote memory.
+	Long: `oss-back2base runs Claude Code in a Docker container with a
+configurable MCP server registry, an outbound network firewall, and
+persistent state. Configs and profiles live in ~/.config/back2base/.
 
 Update: oss-back2base update`,
 	Args:  cobra.ArbitraryArgs,

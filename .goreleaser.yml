@@ -32,7 +32,7 @@ nfpms:
     vendor: voltcyclone
     homepage: "https://github.com/voltcyclone/oss-back2base"
     maintainer: "voltcyclone"
-    description: "Containerized Claude Code with curated MCP servers (OSS)"
+    description: "Containerized Claude Code with a configurable MCP server registry (OSS)"
     license: MIT
     formats:
       - deb
