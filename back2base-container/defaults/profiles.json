@@ -1,0 +1,49 @@
+{
+  "core": ["filesystem", "git"],
+  "profiles": {
+    "full": {
+      "description": "All MCP servers (max capability, highest token cost)",
+      "model": "claude-opus-4-7[1m]",
+      "servers": [
+        "aws-knowledge", "brave-search", "buildkite", "context7",
+        "datadog", "fetch", "filesystem", "git", "github", "godevmcp",
+        "kubernetes", "lsmcp", "sequential-thinking", "sqlite",
+        "terraform"
+      ]
+    },
+    "go": {
+      "description": "Go backend development",
+      "model": "claude-opus-4-7[1m]",
+      "servers": ["context7", "fetch", "github", "godevmcp", "sequential-thinking", "sqlite"]
+    },
+    "python": {
+      "description": "Python development",
+      "model": "claude-opus-4-7[1m]",
+      "servers": ["context7", "fetch", "github", "sequential-thinking", "sqlite"]
+    },
+    "frontend": {
+      "description": "Web / TypeScript frontend development",
+      "model": "claude-opus-4-7[1m]",
+      "servers": ["context7", "fetch", "github", "lsmcp"]
+    },
+    "infra": {
+      "description": "Infrastructure and platform operations",
+      "model": "claude-opus-4-7[1m]",
+      "servers": ["aws-knowledge", "datadog", "fetch", "github", "kubernetes", "terraform"]
+    },
+    "research": {
+      "description": "Research, docs, and exploration",
+      "model": "claude-opus-4-7[1m]",
+      "servers": ["brave-search", "context7", "fetch", "sequential-thinking"]
+    },
+    "documentation": {
+      "description": "Technical writing and documentation authoring",
+      "model": "claude-opus-4-7[1m]",
+      "servers": ["brave-search", "context7", "fetch", "github", "sequential-thinking"]
+    },
+    "minimal": {
+      "description": "Bare minimum (filesystem, git only)",
+      "servers": []
+    }
+  }
+}

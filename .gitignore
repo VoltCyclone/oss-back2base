@@ -1,0 +1,8 @@
+/oss-back2base
+/back2base
+dist/
+*.test
+*.out
+*.pyc
+__pycache__/
+.DS_Store

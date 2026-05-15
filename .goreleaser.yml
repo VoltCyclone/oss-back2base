@@ -1,0 +1,55 @@
+version: 2
+
+builds:
+  - id: oss-back2base
+    main: "."
+    binary: oss-back2base
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.ShortCommit}}
+      - -X main.date={{.Date}}
+      # The OSS repo does not publish matching base-image tags. Leave the
+      # runtime on :latest unless a caller explicitly sets BACK2BASE_BASE_IMAGE.
+      - -X main.baseImageTag=dev
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: default
+    formats: ['tar.gz']
+    name_template: "oss-back2base_{{ .Os }}_{{ .Arch }}"
+
+nfpms:
+  - id: oss-back2base
+    package_name: oss-back2base
+    vendor: voltcyclone
+    homepage: "https://github.com/voltcyclone/oss-back2base"
+    maintainer: "voltcyclone"
+    description: "Containerized Claude Code with curated MCP servers (OSS)"
+    license: MIT
+    formats:
+      - deb
+    dependencies:
+      - docker.io | docker-ce
+    recommends:
+      - docker-compose-plugin
+    section: devel
+    priority: optional
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"

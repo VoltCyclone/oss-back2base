@@ -1,0 +1,8 @@
+{
+  "_back2base_schema": 4,
+  "statusLine": {
+    "type": "command",
+    "command": "/opt/back2base/statusline.sh",
+    "padding": 0
+  }
+}
