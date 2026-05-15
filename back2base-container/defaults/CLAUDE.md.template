@@ -67,7 +67,7 @@ If the user says "remember this" or "save X", treat that as one case among many 
 
 Use the `Write` tool to create a file at `~/.claude/projects/$MEMORY_NAMESPACE/memory/<slug>_<YYYY-MM-DD>_<hash>.md`, where:
 
-- `<slug>` is a short kebab- or snake-case name for the topic (e.g. `user_role`, `feedback_testing`, `auth0_tenant_setup`).
+- `<slug>` is a short kebab- or snake-case name for the topic (e.g. `user_role`, `feedback_testing`, `billing_setup`).
 - `<YYYY-MM-DD>` is today's UTC date — get it via `date -u +%F`.
 - `<hash>` is the first 8 chars of the sha256 of the body you're about to write — `printf '%s' "$body" | shasum -a 256 | head -c 8`.
 

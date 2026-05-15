@@ -6,11 +6,10 @@ import (
 	"os/exec"
 )
 
-// baseImageTag is injected via ldflags at release time (Makefile and
-// .goreleaser.yml wire it to the same string as main.version, which for
-// goreleaser is `v<semver>`). When built locally without LDFLAGS it stays
-// "dev", which resolveBaseImage treats as "no pin" and falls back to
-// :latest for local iteration.
+// baseImageTag may be injected via ldflags by downstream release builds. The
+// OSS release pipeline leaves it as "dev" so resolveBaseImage falls back to the
+// public :latest base image instead of requiring this repo to publish matching
+// base-image tags.
 var baseImageTag = "dev"
 
 const baseImageRepo = "ramseymcgrath/back2base-base"
@@ -19,9 +18,9 @@ const baseImageRepo = "ramseymcgrath/back2base-base"
 // compose runtime should build on top of. Precedence:
 //  1. BACK2BASE_BASE_IMAGE env var (explicit caller override — supports local
 //     testing against a custom image).
-//  2. The binary's embedded baseImageTag (release builds pin to the matching
-//     semver tag published by .github/workflows/base-image.yml on that tag).
-//  3. :latest — dev builds and any release whose ldflag wiring drops out.
+//  2. The binary's embedded baseImageTag, when a downstream build chooses to
+//     pin one.
+//  3. :latest — OSS releases and local builds.
 func resolveBaseImage() string {
 	if v := os.Getenv("BACK2BASE_BASE_IMAGE"); v != "" {
 		return v
@@ -36,9 +35,8 @@ func resolveBaseImage() string {
 // daemon, pulling it if not. Silent on cache hit; on miss it streams the
 // pull to stderr so the user sees why the first launch takes a minute.
 //
-// Called before compose build/run so the pinned-by-version contract is
-// real: a user on back2base v0.17.1 will end up running on
-// back2base-base:v0.17.1 even if their daemon has never seen that tag.
+// Called before compose build/run so first launch pulls the base image when the
+// daemon has not already cached it.
 func ensureBaseImage(image string) error {
 	if err := exec.Command("docker", "image", "inspect", image).Run(); err == nil {
 		return nil

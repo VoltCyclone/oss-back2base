@@ -23,8 +23,8 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	cfg := resolveConfig()
 
 	fmt.Println()
-	fmt.Println("  back2base — containerized Claude Code")
-	fmt.Println("  ─────────────────────────────────────")
+	fmt.Println("  oss-back2base — containerized Claude Code")
+	fmt.Println("  ─────────────────────────────────────────")
 	fmt.Println()
 	fmt.Println("  Install paths:")
 	fmt.Printf("    BACK2BASE_HOME   = %s\n", cfg.Home)
@@ -42,7 +42,7 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	if err := cfg.ensureDirs(); err != nil {
 		return err
 	}
-	// Use the same hash format as ensureReady() so the next `back2base` run
+	// Use the same hash format as ensureReady() so the next `oss-back2base` run
 	// doesn't re-extract. Force extraction by removing the hash file first.
 	hash := version + "-" + commit
 	os.Remove(filepath.Join(cfg.Home, ".extract-hash"))
@@ -59,7 +59,7 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	}
 	if seeded {
 		fmt.Printf(":: Seeded %s from template\n", cfg.EnvFile)
-		fmt.Println(":: Edit it to add your tokens before running back2base.")
+		fmt.Println(":: Edit it to add your tokens before running oss-back2base.")
 	} else {
 		fmt.Printf(":: Existing env file preserved at %s\n", cfg.EnvFile)
 	}
@@ -94,9 +94,9 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 	fmt.Println("  Get started:")
 	fmt.Println()
-	fmt.Println("    back2base login                    Authenticate (first time)")
-	fmt.Println("    back2base                          Launch Claude Code")
-	fmt.Printf("    back2base -p \"...\"                 One-shot prompt\n")
+	fmt.Println("    claude setup-token                 Generate a Claude Code OAuth token")
+	fmt.Println("    oss-back2base                      Launch Claude Code")
+	fmt.Printf("    oss-back2base -p \"...\"             One-shot prompt\n")
 	fmt.Println()
 	fmt.Printf("  Edit config: %s\n\n", cfg.EnvFile)
 

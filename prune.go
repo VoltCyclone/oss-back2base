@@ -20,14 +20,14 @@ var (
 
 var pruneCmd = &cobra.Command{
 	Use:   "prune",
-	Short: "Remove old back2base base images that no longer match this binary",
+	Short: "Remove old base/container images that no longer match this binary",
 	Long: `Removes old ramseymcgrath/back2base-base:v* tags except the version
 this binary pins (plus --keep N most-recent prior versions for rollback) and
-orphan back2base-claude* images not attached to any container. Then runs
+orphan oss-back2base/back2base compose images not attached to any container. Then runs
 'docker image prune -f' to free the dangling layers underneath.
 
 Never touches :latest, never touches images attached to a running or stopped
-container. Brew/apt post-install and 'back2base update' call this with
+container. Package post-install hooks and 'oss-back2base update' call this with
 --yes --quiet automatically.`,
 	RunE: runPrune,
 }
@@ -169,7 +169,8 @@ func selectBaseVictims(images []dockerImage, currentTag string, keep int) []dock
 // back2base-container/docker-compose.yml — the "claude" service builds
 // in-place, named after the project). We deliberately keep that tag,
 // since in-use detection is unreliable right after a user stops a session.
-// Other tags under `back2base-claude` (rare) get the standard in-use guard.
+// Other tags under `back2base-claude` or `oss-back2base-claude` (rare) get
+// the standard in-use guard.
 //
 // `claudebox*` and `ramseymcgrath/claudebox*` are legacy artifacts from
 // the back2base ← claudebox rename. They are never current; prune them
@@ -184,11 +185,12 @@ func selectOrphanCompose(images []dockerImage, inUse map[string]bool) []dockerIm
 			continue
 		}
 		switch {
-		case img.repo == "back2base-claude":
+		case img.repo == "back2base-claude", img.repo == "oss-back2base-claude":
 			if img.tag == "latest" {
 				continue // active build — leave alone
 			}
-		case strings.HasPrefix(img.repo, "back2base-claude-"):
+		case strings.HasPrefix(img.repo, "back2base-claude-"),
+			strings.HasPrefix(img.repo, "oss-back2base-claude-"):
 			// Same family as above; same active-build rule.
 			if img.tag == "latest" {
 				continue
@@ -222,8 +224,8 @@ func runPrune(cmd *cobra.Command, args []string) error {
 	}
 
 	// Below this point, any docker subcommand failure is treated as a
-	// silent no-op — we never want a partial-outage to fail brew/apt
-	// post-install or the auto-prune after `back2base update`.
+	// silent no-op — we never want a partial-outage to fail package-manager
+	// post-install hooks or the auto-prune after `oss-back2base update`.
 	images, err := listDockerImages()
 	if err != nil {
 		if !pruneQuiet {

@@ -12,11 +12,11 @@ import (
 
 func TestCriticalFilesHash_Deterministic(t *testing.T) {
 	fsA := fstest.MapFS{
-		"Dockerfile":          {Data: []byte("FROM node:24\n")},
-		"entrypoint.sh":       {Data: []byte("#!/bin/bash\necho hi\n")},
-		"init-firewall.sh":    {Data: []byte("#!/bin/bash\n")},
-		"lib/cloud-sync.sh":   {Data: []byte("#!/bin/bash\n")},
-		"lib/session-snap.sh": {Data: []byte("#!/bin/bash\n")},
+		"Dockerfile":              {Data: []byte("FROM node:24\n")},
+		"entrypoint.sh":           {Data: []byte("#!/bin/bash\necho hi\n")},
+		"init-firewall.sh":        {Data: []byte("#!/bin/bash\n")},
+		"lib/session-snapshot.sh": {Data: []byte("#!/bin/bash\n")},
+		"lib/session-snap.sh":     {Data: []byte("#!/bin/bash\n")},
 		// Non-critical files must be excluded from the hash.
 		"defaults/mcp.json": {Data: []byte(`{"a":1}`)},
 		"commands/foo.md":   {Data: []byte("# foo")},
@@ -41,11 +41,11 @@ func TestCriticalFilesHash_Deterministic(t *testing.T) {
 
 func TestCriticalFilesHash_IgnoresNonCriticalChanges(t *testing.T) {
 	base := fstest.MapFS{
-		"Dockerfile":        {Data: []byte("FROM node:24\n")},
-		"entrypoint.sh":     {Data: []byte("#!/bin/bash\n")},
-		"init-firewall.sh":  {Data: []byte("#!/bin/bash\n")},
-		"lib/cloud-sync.sh": {Data: []byte("#!/bin/bash\n")},
-		"defaults/mcp.json": {Data: []byte(`{"a":1}`)},
+		"Dockerfile":              {Data: []byte("FROM node:24\n")},
+		"entrypoint.sh":           {Data: []byte("#!/bin/bash\n")},
+		"init-firewall.sh":        {Data: []byte("#!/bin/bash\n")},
+		"lib/session-snapshot.sh": {Data: []byte("#!/bin/bash\n")},
+		"defaults/mcp.json":       {Data: []byte(`{"a":1}`)},
 	}
 	h1, err := criticalFilesHash(base)
 	if err != nil {
@@ -54,12 +54,12 @@ func TestCriticalFilesHash_IgnoresNonCriticalChanges(t *testing.T) {
 
 	// Modify only non-critical assets.
 	mutated := fstest.MapFS{
-		"Dockerfile":        {Data: []byte("FROM node:24\n")},
-		"entrypoint.sh":     {Data: []byte("#!/bin/bash\n")},
-		"init-firewall.sh":  {Data: []byte("#!/bin/bash\n")},
-		"lib/cloud-sync.sh": {Data: []byte("#!/bin/bash\n")},
-		"defaults/mcp.json": {Data: []byte(`{"a":2}`)}, // changed
-		"commands/new.md":   {Data: []byte("new")},      // added
+		"Dockerfile":              {Data: []byte("FROM node:24\n")},
+		"entrypoint.sh":           {Data: []byte("#!/bin/bash\n")},
+		"init-firewall.sh":        {Data: []byte("#!/bin/bash\n")},
+		"lib/session-snapshot.sh": {Data: []byte("#!/bin/bash\n")},
+		"defaults/mcp.json":       {Data: []byte(`{"a":2}`)}, // changed
+		"commands/new.md":         {Data: []byte("new")},     // added
 	}
 	h2, err := criticalFilesHash(mutated)
 	if err != nil {
@@ -78,33 +78,33 @@ func TestCriticalFilesHash_CriticalChangeFlipsHash(t *testing.T) {
 		{
 			name: "Dockerfile",
 			mut: fstest.MapFS{
-				"Dockerfile":        {Data: []byte("FROM node:25\n")}, // changed
-				"entrypoint.sh":     {Data: []byte("#!/bin/bash\n")},
-				"lib/cloud-sync.sh": {Data: []byte("#!/bin/bash\n")},
+				"Dockerfile":              {Data: []byte("FROM node:25\n")}, // changed
+				"entrypoint.sh":           {Data: []byte("#!/bin/bash\n")},
+				"lib/session-snapshot.sh": {Data: []byte("#!/bin/bash\n")},
 			},
 		},
 		{
 			name: "entrypoint.sh",
 			mut: fstest.MapFS{
-				"Dockerfile":        {Data: []byte("FROM node:24\n")},
-				"entrypoint.sh":     {Data: []byte("#!/bin/bash\necho changed\n")}, // changed
-				"lib/cloud-sync.sh": {Data: []byte("#!/bin/bash\n")},
+				"Dockerfile":              {Data: []byte("FROM node:24\n")},
+				"entrypoint.sh":           {Data: []byte("#!/bin/bash\necho changed\n")}, // changed
+				"lib/session-snapshot.sh": {Data: []byte("#!/bin/bash\n")},
 			},
 		},
 		{
 			name: "lib/*.sh",
 			mut: fstest.MapFS{
-				"Dockerfile":        {Data: []byte("FROM node:24\n")},
-				"entrypoint.sh":     {Data: []byte("#!/bin/bash\n")},
-				"lib/cloud-sync.sh": {Data: []byte("#!/bin/bash\necho NEW\n")}, // changed
+				"Dockerfile":              {Data: []byte("FROM node:24\n")},
+				"entrypoint.sh":           {Data: []byte("#!/bin/bash\n")},
+				"lib/session-snapshot.sh": {Data: []byte("#!/bin/bash\necho NEW\n")}, // changed
 			},
 		},
 	}
 
 	base := fstest.MapFS{
-		"Dockerfile":        {Data: []byte("FROM node:24\n")},
-		"entrypoint.sh":     {Data: []byte("#!/bin/bash\n")},
-		"lib/cloud-sync.sh": {Data: []byte("#!/bin/bash\n")},
+		"Dockerfile":              {Data: []byte("FROM node:24\n")},
+		"entrypoint.sh":           {Data: []byte("#!/bin/bash\n")},
+		"lib/session-snapshot.sh": {Data: []byte("#!/bin/bash\n")},
 	}
 	baseHash, err := criticalFilesHash(base)
 	if err != nil {

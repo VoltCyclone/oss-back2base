@@ -324,7 +324,7 @@ func criticalFilesHash(assets fs.FS) (string, error) {
 // whose change should trigger a `--no-cache --pull` rebuild.
 func isCriticalContainerFile(path string) bool {
 	// shipFS() is rooted at back2base-container/, so paths look like
-	// "Dockerfile", "entrypoint.sh", "lib/cloud-sync.sh", "defaults/...".
+	// "Dockerfile", "entrypoint.sh", "lib/session-snapshot.sh", "defaults/...".
 	if path == "Dockerfile" {
 		return true
 	}

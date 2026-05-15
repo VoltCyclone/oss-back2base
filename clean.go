@@ -18,7 +18,7 @@ var cleanCmd = &cobra.Command{
 
 var wipeCmd = &cobra.Command{
 	Use:   "wipe-images",
-	Short: "Nuke ALL back2base containers and images",
+	Short: "Nuke ALL oss-back2base containers and images",
 	RunE:  runWipe,
 }
 
@@ -46,31 +46,38 @@ func runClean(cmd *cobra.Command, args []string) error {
 func runWipe(cmd *cobra.Command, args []string) error {
 	cfg := resolveConfig()
 
-	// Find back2base images
+	// Find oss-back2base/back2base-compatible images.
 	imgOut, _ := exec.Command("docker", "images", "--format", "{{.Repository}}:{{.Tag}}").Output()
 	var imageRefs []string
 	for _, line := range strings.Split(string(imgOut), "\n") {
 		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "back2base-claude") ||
+		if strings.HasPrefix(line, "oss-back2base-claude") ||
+			strings.HasPrefix(line, "back2base-claude") ||
 			strings.HasPrefix(line, "ramseymcgrath/back2base-base") ||
 			strings.HasPrefix(line, "back2base/back2base:") {
 			imageRefs = append(imageRefs, line)
 		}
 	}
 
-	// Find back2base containers from image names and compose labels
+	// Find oss-back2base/back2base-compatible containers from image names and
+	// compose labels.
 	ctrOut1, _ := exec.Command("docker", "ps", "-a",
 		"--format", "{{.Names}}\t{{.Image}}").Output()
-	ctrOut2, _ := exec.Command("docker", "ps", "-a",
+	ctrOut2a, _ := exec.Command("docker", "ps", "-a",
 		"--filter", "label=com.docker.compose.project=back2base",
 		"--format", "{{.Names}}").Output()
+	ctrOut2b, _ := exec.Command("docker", "ps", "-a",
+		"--filter", "label=com.docker.compose.project=oss-back2base",
+		"--format", "{{.Names}}").Output()
+	ctrOut2 := append(ctrOut2a, ctrOut2b...)
 
 	containerSet := make(map[string]bool)
 	for _, line := range strings.Split(string(ctrOut1), "\n") {
 		parts := strings.SplitN(strings.TrimSpace(line), "\t", 2)
 		if len(parts) == 2 {
 			img := parts[1]
-			if strings.HasPrefix(img, "back2base-claude") ||
+			if strings.HasPrefix(img, "oss-back2base-claude") ||
+				strings.HasPrefix(img, "back2base-claude") ||
 				strings.HasPrefix(img, "back2base/back2base") {
 				containerSet[parts[0]] = true
 			}
@@ -89,7 +96,7 @@ func runWipe(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(imageRefs) == 0 && len(containers) == 0 {
-		fmt.Println("No back2base containers or images found.")
+		fmt.Println("No oss-back2base containers or images found.")
 		return nil
 	}
 
@@ -140,6 +147,6 @@ func runWipe(cmd *cobra.Command, args []string) error {
 		exec.Command("docker", rmiArgs...).Run()
 	}
 
-	fmt.Println("Done. Next 'back2base' run will rebuild from source.")
+	fmt.Println("Done. Next 'oss-back2base' run will rebuild from source.")
 	return nil
 }

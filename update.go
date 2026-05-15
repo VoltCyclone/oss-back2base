@@ -10,7 +10,7 @@ import (
 
 var updateCmd = &cobra.Command{
 	Use:   "update",
-	Short: "Update back2base to the latest version",
+	Short: "Update oss-back2base to the latest version",
 	RunE:  runUpdate,
 }
 
@@ -20,18 +20,18 @@ func init() {
 
 func runUpdate(cmd *cobra.Command, args []string) error {
 	if isHomebrewInstall() {
-		fmt.Println("back2base is installed via Homebrew. Run:")
-		fmt.Println("  brew upgrade back2base")
+		fmt.Println("oss-back2base appears to be installed via Homebrew. Run:")
+		fmt.Println("  brew upgrade oss-back2base")
 		return nil
 	}
 
 	if isAptInstall() {
-		fmt.Println("back2base is installed via apt. Run:")
-		fmt.Println("  sudo apt update && sudo apt upgrade back2base")
+		fmt.Println("oss-back2base appears to be installed via apt. Run:")
+		fmt.Println("  sudo apt update && sudo apt upgrade oss-back2base")
 		return nil
 	}
 
-	fmt.Printf("back2base %s — checking for updates...\n", version)
+	fmt.Printf("oss-back2base %s — checking for updates...\n", version)
 
 	newVer, url, err := checkForUpdate()
 	if err != nil {
@@ -47,7 +47,7 @@ func runUpdate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf("Updated to v%s. Run 'back2base version' to confirm.\n", newVer)
+	fmt.Printf("Updated to v%s. Run 'oss-back2base version' to confirm.\n", newVer)
 
 	// Auto-prune via the just-installed binary so its embedded baseImageTag
 	// (the new version) is the "current" pin. Best-effort: any failure is

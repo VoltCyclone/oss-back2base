@@ -180,11 +180,11 @@ func isAptInstall() bool {
 	if err != nil {
 		return false
 	}
-	if p != "/usr/bin/back2base" && p != "/usr/local/bin/back2base" {
+	if p != "/usr/bin/oss-back2base" && p != "/usr/local/bin/oss-back2base" {
 		return false
 	}
 	// Check if dpkg knows about the package
-	if _, err := os.Stat("/var/lib/dpkg/info/back2base.list"); err == nil {
+	if _, err := os.Stat("/var/lib/dpkg/info/oss-back2base.list"); err == nil {
 		return true
 	}
 	return false

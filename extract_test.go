@@ -9,10 +9,10 @@ import (
 
 func TestExtractAssets(t *testing.T) {
 	testFS := fstest.MapFS{
-		"Dockerfile":         {Data: []byte("FROM node:24\n")},
-		"entrypoint.sh":      {Data: []byte("#!/bin/bash\necho hi\n")},
-		"defaults/mcp.json":  {Data: []byte(`{"mcpServers":{}}` + "\n")},
-		"lib/cloud-sync.sh":  {Data: []byte("#!/bin/bash\n")},
+		"Dockerfile":              {Data: []byte("FROM node:24\n")},
+		"entrypoint.sh":           {Data: []byte("#!/bin/bash\necho hi\n")},
+		"defaults/mcp.json":       {Data: []byte(`{"mcpServers":{}}` + "\n")},
+		"lib/session-snapshot.sh": {Data: []byte("#!/bin/bash\n")},
 	}
 
 	dest := t.TempDir()
@@ -28,7 +28,7 @@ func TestExtractAssets(t *testing.T) {
 		"Dockerfile",
 		"entrypoint.sh",
 		"defaults/mcp.json",
-		"lib/cloud-sync.sh",
+		"lib/session-snapshot.sh",
 	} {
 		path := filepath.Join(dest, name)
 		if _, err := os.Stat(path); err != nil {

@@ -32,7 +32,7 @@ Anthropic API key works too — set `BACK2BASE_ANTHROPIC_API_KEY` in `~/.config/
 
 ## What's included
 
-- **CLI commands**: `run` (default), `shell`, `doctor`, `explore`, `profile`, `prune`, `mcp`, `overview`, `update`, `selfupdate`, `install`, `setup`, `clean`, `resume`, `status`, `build`/`rebuild`, `session`, `version`.
+- **CLI commands**: `run` (default), `shell`, `doctor`, `profile`, `prune`, `mcp`, `overview`, `update`, `selfupdate`, `install`, `setup`, `clean`, `resume`, `status`, `build`/`rebuild`, `session`, `version`.
 - **Container payload** (`back2base-container/`): Dockerfile, docker-compose, entrypoint, iptables-based outbound firewall, MCP profile defaults, baseline `CLAUDE.md` template, skills + slash-command bundle.
 - **GitHub Actions**: `ci.yml` (go test/vet, lint, cross-build matrix) and `release.yml` (goreleaser on tag push).
 
@@ -41,7 +41,8 @@ Anthropic API key works too — set `BACK2BASE_ANTHROPIC_API_KEY` in `~/.config/
 - `auth0/`, `auth.go`, `login.go`, the device-flow code, and the host keychain credential store — all removed.
 - `workers/` (Cloudflare Workers for proxy, config, memory, landing site) — never copied.
 - `lib/cloud-sync.sh`, `lib/hooks/memory-push.sh`, `lib/hooks/memory-pull.sh` — removed from the container payload.
-- OTel telemetry to `otel.back2base.net` — disabled by default; users can point `BACK2BASE_OTEL_ENDPOINT` at their own collector.
+- Hosted telemetry defaults — removed. OTel is disabled unless users point
+  `BACK2BASE_OTEL_ENDPOINT` at their own collector.
 
 ## Repository layout
 

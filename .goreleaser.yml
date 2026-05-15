@@ -9,7 +9,9 @@ builds:
       - -X main.version={{.Version}}
       - -X main.commit={{.ShortCommit}}
       - -X main.date={{.Date}}
-      - -X main.baseImageTag=v{{.Version}}
+      # The OSS repo does not publish matching base-image tags. Leave the
+      # runtime on :latest unless a caller explicitly sets BACK2BASE_BASE_IMAGE.
+      - -X main.baseImageTag=dev
     env:
       - CGO_ENABLED=0
     goos:

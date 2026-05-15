@@ -279,15 +279,15 @@ func TestRunMCPList_TableHeaders(t *testing.T) {
 
 func TestRunMCPList_EnvCellRendersJoined(t *testing.T) {
 	infos := []mcpServerInfo{
-		{Name: "memory", Transport: "stdio", Display: "memory-mcp",
-			EnvRequired: []string{"MEMORY_MCP_TOKEN", "MEMORY_NAMESPACE"}},
+		{Name: "fetch", Transport: "stdio", Display: "mcp-server-fetch",
+			EnvRequired: []string{"FETCH_TIMEOUT", "FETCH_USER_AGENT"}},
 	}
 	var buf bytes.Buffer
 	if err := renderMCPList(&buf, infos, mcpSourceState, false); err != nil {
 		t.Fatal(err)
 	}
 	out := buf.String()
-	if !strings.Contains(out, "MEMORY_MCP_TOKEN") || !strings.Contains(out, "MEMORY_NAMESPACE") {
+	if !strings.Contains(out, "FETCH_TIMEOUT") || !strings.Contains(out, "FETCH_USER_AGENT") {
 		t.Errorf("missing env keys in row:\n%s", out)
 	}
 }
@@ -387,7 +387,7 @@ func TestRunMCPTest_StdioSkipsWithoutNetwork(t *testing.T) {
 	}
 
 	infos := []mcpServerInfo{
-		{Name: "memory", Transport: "stdio", Display: "memory-mcp"},
+		{Name: "fetch", Transport: "stdio", Display: "mcp-server-fetch"},
 	}
 	results := probeAll(infos, "", failClient, 3*time.Second)
 	if len(results) != 1 {

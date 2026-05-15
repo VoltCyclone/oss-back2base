@@ -35,7 +35,6 @@ COPY --chown=node:node defaults/CLAUDE.md.template /opt/back2base/defaults/CLAUD
 COPY --chown=node:node defaults/profile-snippets/ /opt/back2base/defaults/profile-snippets/
 
 # Hook scripts (power-steering-drain, claude-md-audit, and shared lib).
-# Memory/cloud-sync hooks are not shipped in the OSS build.
 COPY --chown=node:node --chmod=0755 lib/hooks/ /opt/back2base/hooks/
 
 # Session snapshot daemon — invoked by absolute path from entrypoint.sh

@@ -62,7 +62,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
 
     # Add the docker daemon's socket GID as a supplementary group on the node
-    # user so it can read /var/run/docker.sock without sudo. bin/back2base
+    # user so it can read /var/run/docker.sock without sudo. oss-back2base
     # probes the active daemon at every launch (Colima → ~991 docker group,
     # Docker Desktop → 0 root) and exports BACK2BASE_DOCKER_GID; the cache
     # at $BACK2BASE_STATE/docker-gid is a fallback if the probe fails.
@@ -72,11 +72,11 @@ services:
       - "${BACK2BASE_DOCKER_GID:-999}"
 
     environment:
-      # Auth — long-lived OAuth token from `back2base login`, or an API key.
+      # Auth — long-lived Claude Code OAuth token, or an API key.
       # Source is the BACK2BASE_<NAME> variant only: the user's bare
       # ANTHROPIC_API_KEY / CLAUDE_CODE_OAUTH_TOKEN / etc. (in their shell
       # or in random tools' env files) is intentionally NOT picked up, so
-      # back2base can't accidentally inherit a credential the user meant
+      # oss-back2base can't accidentally inherit a credential the user meant
       # for something else. The container still receives the unprefixed
       # name because that's what Claude Code reads.
       - CLAUDE_CODE_OAUTH_TOKEN=${BACK2BASE_CLAUDE_CODE_OAUTH_TOKEN:-}

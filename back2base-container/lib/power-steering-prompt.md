@@ -52,8 +52,8 @@ text or dispatching a Plan subagent.
 
 **Looks like:**
 ```
-- ORIGINAL TASK: "rewrite the auth flow to use Auth0 instead of Cognito,
-  it touches the worker, the client, and the migrations"
+- ORIGINAL TASK: "rewrite the billing flow to use Stripe Checkout instead
+  of invoices, it touches the worker, the client, and the migrations"
 - 1st assistant turn: tool_use: Edit(file="...auth.ts")
 - 2nd assistant turn: tool_use: Edit(file="...config.ts")
 - (no plan stated, no Plan subagent dispatched)
