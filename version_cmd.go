@@ -18,7 +18,7 @@ var versionCmd = &cobra.Command{
 	Short: "Print version information",
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Print(Banner())
-		fmt.Printf("   back2base %s (%s) built %s [%s/%s]\n",
+		fmt.Printf("   oss-back2base %s (%s) built %s [%s/%s]\n",
 			version, commit[:min(7, len(commit))], date,
 			runtime.GOOS, runtime.GOARCH)
 		fmt.Printf("   base image: %s\n\n", resolveBaseImage())

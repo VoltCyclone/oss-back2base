@@ -83,10 +83,10 @@ func runResume(cmd *cobra.Command, args []string) error {
 
 func formatPickError(err error, ns string) error {
 	if errors.Is(err, errNoSessions) {
-		return fmt.Errorf("no prior sessions for namespace %q; run `back2base run` to start fresh", ns)
+		return fmt.Errorf("no prior sessions for namespace %q; run `oss-back2base run` to start fresh", ns)
 	}
 	if errors.Is(err, errNoValidSession) {
-		return fmt.Errorf("no resumable session for namespace %q (all live JSONLs corrupt and no valid snapshots); run `back2base run` to start fresh", ns)
+		return fmt.Errorf("no resumable session for namespace %q (all live JSONLs corrupt and no valid snapshots); run `oss-back2base run` to start fresh", ns)
 	}
 	var nf *errSessionNotFound
 	if errors.As(err, &nf) {

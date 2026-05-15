@@ -55,7 +55,7 @@ type mcpServerInfo struct {
 	EnvRequired []string `json:"env_required"`
 }
 
-// mcpProbeResult is one row of `back2base mcp test` output.
+// mcpProbeResult is one row of `oss-back2base mcp test` output.
 type mcpProbeResult struct {
 	Name       string `json:"name"`
 	Transport  string `json:"transport"`

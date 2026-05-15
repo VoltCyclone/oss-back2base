@@ -189,7 +189,7 @@ func checkPayloadExtracted(home string) checkResult {
 		return checkResult{
 			Status:  statusFail,
 			Detail:  "no .extract-hash at " + home,
-			FixHint: "run any back2base command to trigger extraction",
+			FixHint: "run any oss-back2base command to trigger extraction",
 		}
 	}
 	// Spot-check one file the runtime always needs.
@@ -198,7 +198,7 @@ func checkPayloadExtracted(home string) checkResult {
 		return checkResult{
 			Status:  statusFail,
 			Detail:  "missing docker-compose.yml at " + home,
-			FixHint: "delete " + hashFile + " and re-run back2base to force re-extraction",
+			FixHint: "delete " + hashFile + " and re-run oss-back2base to force re-extraction",
 		}
 	}
 	return checkResult{
@@ -212,7 +212,7 @@ func checkImageExists(ctx context.Context, r cmdRunner, image string) checkResul
 		return checkResult{
 			Status:  statusFail,
 			Detail:  "image " + image + " not present",
-			FixHint: "run `back2base build` or `docker pull " + image + "`",
+			FixHint: "run `oss-back2base build` or `docker pull " + image + "`",
 		}
 	}
 	return checkResult{

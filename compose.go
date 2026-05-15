@@ -10,7 +10,7 @@ import (
 )
 
 // baseComposeArgs returns the docker compose flags shared by every
-// back2base subcommand. extraFiles, if any, are added as additional `-f`
+// oss-back2base subcommand. extraFiles, if any, are added as additional `-f`
 // flags AFTER the base compose file so their values override the base
 // (compose's documented merge order).
 func baseComposeArgs(cfg cbConfig, extraFiles ...string) []string {
@@ -44,7 +44,7 @@ func hostCredsOverridePath(cfg cbConfig) string {
 // empty config dirs in $HOME for users who don't have those tools
 // installed. Generating the override per-run also means a tool the user
 // installs between runs (e.g. `aws configure` after first launch) is
-// picked up on the next start without any back2base-side reconfig.
+// picked up on the next start without any oss-back2base-side reconfig.
 //
 // Returns the override path on success, "" if no host creds were found
 // (no override written), or "" if writing failed (caller falls through

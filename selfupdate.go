@@ -82,7 +82,7 @@ func checkForUpdate() (newVersion, downloadURL string, err error) {
 		return "", "", nil
 	}
 
-	wantName := fmt.Sprintf("back2base_%s_%s", runtime.GOOS, runtime.GOARCH)
+	wantName := fmt.Sprintf("oss-back2base_%s_%s", runtime.GOOS, runtime.GOARCH)
 	for _, a := range release.Assets {
 		if strings.Contains(a.Name, wantName) {
 			return latest, a.BrowserDownloadURL, nil
@@ -128,14 +128,14 @@ func doSelfUpdate(downloadURL string) error {
 			if err != nil {
 				return fmt.Errorf("read tar: %w", err)
 			}
-			if hdr.Name == "back2base" || strings.HasSuffix(hdr.Name, "/back2base") {
+			if hdr.Name == "oss-back2base" || strings.HasSuffix(hdr.Name, "/oss-back2base") {
 				binaryReader = tr
 				found = true
 				break
 			}
 		}
 		if !found {
-			return fmt.Errorf("back2base binary not found in archive")
+			return fmt.Errorf("oss-back2base binary not found in archive")
 		}
 	} else {
 		binaryReader = resp.Body

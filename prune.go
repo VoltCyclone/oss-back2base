@@ -312,7 +312,7 @@ func runPrune(cmd *cobra.Command, args []string) error {
 	total := len(baseVictims) + len(claudeVictims)
 	if pruneQuiet {
 		if total > 0 {
-			fmt.Printf(":: pruned %d old back2base image(s)\n", total)
+			fmt.Printf(":: pruned %d old oss-back2base/back2base image(s)\n", total)
 		}
 	} else {
 		fmt.Println("Done.")
