@@ -139,7 +139,13 @@ func collectChecks(ctx context.Context, cfg cbConfig, runner cmdRunner) []checkR
 	mcpRes.Name = "MCP config parseable"
 	results = append(results, mcpRes)
 
-	// 7. Stale binary
+	// 7. Managed-settings detection (informational — pass when found,
+	// skip when host has no admin policy installed).
+	managedRes := checkManagedSettings()
+	managedRes.Name = "Managed Claude Code policy"
+	results = append(results, managedRes)
+
+	// 8. Stale binary
 	staleRes := checkStaleBinary(filepath.Join(cfg.ConfigDir, "last-version-check.json"), version)
 	staleRes.Name = "Binary up to date"
 	results = append(results, staleRes)
@@ -218,6 +224,42 @@ func checkImageExists(ctx context.Context, r cmdRunner, image string) checkResul
 	return checkResult{
 		Status: statusPass,
 		Detail: image,
+	}
+}
+
+// checkManagedSettings probes the platform-specific Claude Code
+// managed-policy directory on the host. The check is informational —
+// a host with no enterprise policy is not an error, but when policy IS
+// present it's helpful to confirm oss-back2base sees it and will mount
+// it into the container at /etc/claude-code/.
+func checkManagedSettings() checkResult {
+	hostDir := managedSettingsHostDir()
+	if hostDir == "" {
+		return checkResult{
+			Status: statusSkip,
+			Detail: "platform without a documented managed-settings path",
+		}
+	}
+	candidates := []string{
+		filepath.Join(hostDir, "managed-settings.json"),
+		filepath.Join(hostDir, "managed-settings.d"),
+		filepath.Join(hostDir, "CLAUDE.md"),
+	}
+	var found []string
+	for _, p := range candidates {
+		if _, err := os.Stat(p); err == nil {
+			found = append(found, filepath.Base(p))
+		}
+	}
+	if len(found) == 0 {
+		return checkResult{
+			Status: statusSkip,
+			Detail: fmt.Sprintf("no policy at %s (host has no enterprise Claude Code policy)", hostDir),
+		}
+	}
+	return checkResult{
+		Status: statusPass,
+		Detail: fmt.Sprintf("%s — mounting %s read-only into /etc/claude-code/", hostDir, strings.Join(found, ", ")),
 	}
 }
 

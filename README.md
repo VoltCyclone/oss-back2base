@@ -91,6 +91,27 @@ The container seeds `~/.config/back2base/state/skills/` and `~/.config/back2base
 
 The container applies an iptables outbound allowlist (see [`back2base-container/init-firewall.sh`](back2base-container/init-firewall.sh)). To bypass it entirely — useful for debugging or networks the allowlist doesn't cover — set `DISABLE_FIREWALL=1` in `~/.config/back2base/env`.
 
+### Enterprise managed policy
+
+If your organization deploys [Claude Code managed settings](https://code.claude.com/docs/en/server-managed-settings) (admin-defined `permissions.allow` / `permissions.deny`, hooks, env vars, an `allowManagedPermissionRulesOnly` lock, or a centrally managed `CLAUDE.md`), `oss-back2base` honors that policy inside the container.
+
+On every launch, the CLI probes the platform-standard host directory and bind-mounts the artifacts read-only at the canonical Linux paths that Claude Code reads inside the container:
+
+| Host path (probed) | Container path (mounted) |
+|---|---|
+| `/Library/Application Support/ClaudeCode/managed-settings.json` (macOS) <br> `/etc/claude-code/managed-settings.json` (Linux) | `/etc/claude-code/managed-settings.json` |
+| `…/managed-settings.d/` | `/etc/claude-code/managed-settings.d/` |
+| `…/CLAUDE.md` | `/etc/claude-code/CLAUDE.md` |
+
+Mounts are emitted only for artifacts that actually exist on the host. Set `BACK2BASE_MANAGED_SETTINGS_DIR=<path>` in `~/.config/back2base/env` to probe a non-standard host directory (useful for testing or air-gapped installs).
+
+To verify policy is wired up, run:
+
+```bash
+./oss-back2base doctor
+# look for:  [PASS] Managed Claude Code policy: /etc/claude-code/ — mounting managed-settings.json, CLAUDE.md read-only into /etc/claude-code/
+```
+
 ## Repository layout
 
 - `*.go` — the CLI source.

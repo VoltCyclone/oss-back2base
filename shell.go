@@ -24,7 +24,11 @@ func runShell(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	composeArgs := baseComposeArgs(s.cfg)
+	var overrides []string
+	if p := writeManagedSettingsOverride(s.cfg); p != "" {
+		overrides = append(overrides, p)
+	}
+	composeArgs := baseComposeArgs(s.cfg, overrides...)
 	composeArgs = append(composeArgs, "run", "--rm", "claude")
 
 	return composeExec(composeArgs)

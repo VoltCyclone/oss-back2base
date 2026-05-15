@@ -254,3 +254,87 @@ func TestBuildRunArgs_AppendsHostCredsOverrideWhenPresent(t *testing.T) {
 		t.Fatalf("override -f must follow base compose -f: %s", joined)
 	}
 }
+
+// TestWriteManagedSettingsOverride_NoDirReturnsEmpty: when the host
+// managed-settings dir doesn't exist (or is empty of the three known
+// artifacts), no override is written.
+func TestWriteManagedSettingsOverride_NoDirReturnsEmpty(t *testing.T) {
+	t.Setenv("BACK2BASE_MANAGED_SETTINGS_DIR", filepath.Join(t.TempDir(), "does-not-exist"))
+	cfg := cbConfig{StateDir: t.TempDir()}
+	if got := writeManagedSettingsOverride(cfg); got != "" {
+		t.Fatalf("expected empty when dir is absent, got %q", got)
+	}
+}
+
+// TestWriteManagedSettingsOverride_PartialIncludesOnlyExisting: only the
+// managed-settings artifacts that actually exist on the host get bind
+// mounts; missing ones are silently skipped.
+func TestWriteManagedSettingsOverride_PartialIncludesOnlyExisting(t *testing.T) {
+	hostDir := t.TempDir()
+	// managed-settings.json present, CLAUDE.md present, managed-settings.d absent.
+	if err := os.WriteFile(filepath.Join(hostDir, "managed-settings.json"), []byte(`{}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(hostDir, "CLAUDE.md"), []byte("# policy"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("BACK2BASE_MANAGED_SETTINGS_DIR", hostDir)
+	cfg := cbConfig{StateDir: t.TempDir()}
+
+	path := writeManagedSettingsOverride(cfg)
+	if path == "" {
+		t.Fatal("expected non-empty override path when artifacts exist")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read override: %v", err)
+	}
+	body := string(data)
+	if !strings.Contains(body, "/etc/claude-code/managed-settings.json") {
+		t.Errorf("override missing managed-settings.json mount target:\n%s", body)
+	}
+	if !strings.Contains(body, "/etc/claude-code/CLAUDE.md") {
+		t.Errorf("override missing CLAUDE.md mount target:\n%s", body)
+	}
+	if strings.Contains(body, "managed-settings.d") {
+		t.Errorf("override unexpectedly references managed-settings.d (host dir absent):\n%s", body)
+	}
+	if !strings.Contains(body, ":ro") {
+		t.Errorf("override mount must be read-only:\n%s", body)
+	}
+}
+
+// TestBuildRunArgs_AppendsManagedSettingsOverrideWhenPresent: when host
+// managed-settings artifacts exist, buildRunArgs threads the generated
+// override into the compose command alongside (and after) the base
+// compose file.
+func TestBuildRunArgs_AppendsManagedSettingsOverrideWhenPresent(t *testing.T) {
+	hostDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(hostDir, "managed-settings.json"), []byte(`{"permissions":{"deny":["Bash"]}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("BACK2BASE_MANAGED_SETTINGS_DIR", hostDir)
+	// HOME isolation so the host-creds probe doesn't add unrelated overrides.
+	t.Setenv("HOME", t.TempDir())
+
+	tmpState := t.TempDir()
+	cfg := cbConfig{
+		Home:      "/opt/back2base",
+		ConfigDir: "/etc/back2base",
+		StateDir:  tmpState,
+		EnvFile:   "/etc/back2base/env",
+	}
+
+	args := buildRunArgs(cfg, runOpts{})
+	joined := strings.Join(args, " ")
+
+	overridePath := filepath.Join(tmpState, "run", "managed-settings-override.yml")
+	if !strings.Contains(joined, "-f "+overridePath) {
+		t.Fatalf("expected -f %s in args: %v", overridePath, args)
+	}
+	idxBase := strings.Index(joined, "/opt/back2base/docker-compose.yml")
+	idxOverride := strings.Index(joined, overridePath)
+	if idxBase < 0 || idxOverride < 0 || idxOverride < idxBase {
+		t.Fatalf("managed-settings override -f must follow base compose -f: %s", joined)
+	}
+}

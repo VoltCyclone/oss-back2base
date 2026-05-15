@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 )
@@ -84,6 +85,84 @@ func writeHostCredsOverride(cfg cbConfig) string {
 	return path
 }
 
+// managedSettingsHostDir returns the platform-specific directory Claude
+// Code reads enterprise / managed-policy files from on the host, or ""
+// when the platform isn't supported. BACK2BASE_MANAGED_SETTINGS_DIR
+// overrides the probe (useful for sandboxed environments, dev setups,
+// or admins who deploy policy at a non-standard path).
+//
+// References (docs.claude.com):
+//   - macOS:  /Library/Application Support/ClaudeCode/
+//   - Linux:  /etc/claude-code/
+//
+// Within that directory we look for three artifacts:
+//   - managed-settings.json   — top-tier policy file
+//   - managed-settings.d/     — drop-in directory for modular policies
+//   - CLAUDE.md               — admin-deployed context prepended to memory
+func managedSettingsHostDir() string {
+	if v := strings.TrimSpace(os.Getenv("BACK2BASE_MANAGED_SETTINGS_DIR")); v != "" {
+		return v
+	}
+	switch runtime.GOOS {
+	case "darwin":
+		return "/Library/Application Support/ClaudeCode"
+	case "linux":
+		return "/etc/claude-code"
+	default:
+		return ""
+	}
+}
+
+// managedSettingsOverridePath is where writeManagedSettingsOverride stages
+// its generated compose override fragment.
+func managedSettingsOverridePath(cfg cbConfig) string {
+	return filepath.Join(cfg.StateDir, "run", "managed-settings-override.yml")
+}
+
+// writeManagedSettingsOverride generates a docker-compose override that
+// bind-mounts the host's Claude Code managed-policy artifacts at the
+// canonical Linux paths inside the container. Claude Code reads these
+// paths unconditionally (no env-var or flag exists to redirect them), so
+// a bind mount is the only way enterprise policy gets honored when the
+// CLI runs in a sandbox.
+//
+// All mounts are read-only and only emitted for artifacts that actually
+// exist on the host. Returns the override path on success or "" if no
+// managed artifacts were found.
+func writeManagedSettingsOverride(cfg cbConfig) string {
+	hostDir := managedSettingsHostDir()
+	if hostDir == "" {
+		return ""
+	}
+	type mount struct{ src, dst string }
+	candidates := []mount{
+		{filepath.Join(hostDir, "managed-settings.json"), "/etc/claude-code/managed-settings.json"},
+		{filepath.Join(hostDir, "managed-settings.d"), "/etc/claude-code/managed-settings.d"},
+		{filepath.Join(hostDir, "CLAUDE.md"), "/etc/claude-code/CLAUDE.md"},
+	}
+	var lines []string
+	for _, m := range candidates {
+		if _, err := os.Stat(m.src); err != nil {
+			continue
+		}
+		lines = append(lines, fmt.Sprintf("      - %q:%q:ro", m.src, m.dst))
+	}
+	if len(lines) == 0 {
+		return ""
+	}
+	body := "services:\n  claude:\n    volumes:\n" + strings.Join(lines, "\n") + "\n"
+	path := managedSettingsOverridePath(cfg)
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		fmt.Fprintf(os.Stderr, ":: warn: could not stage managed-settings override dir (%v)\n", err)
+		return ""
+	}
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		fmt.Fprintf(os.Stderr, ":: warn: could not write managed-settings override (%v)\n", err)
+		return ""
+	}
+	return path
+}
+
 type runOpts struct {
 	extraDirs []string
 	prompt    string
@@ -94,6 +173,9 @@ type runOpts struct {
 func buildRunArgs(cfg cbConfig, opts runOpts) []string {
 	var overrides []string
 	if p := writeHostCredsOverride(cfg); p != "" {
+		overrides = append(overrides, p)
+	}
+	if p := writeManagedSettingsOverride(cfg); p != "" {
 		overrides = append(overrides, p)
 	}
 	args := baseComposeArgs(cfg, overrides...)
