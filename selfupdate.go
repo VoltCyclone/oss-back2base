@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-const releaseURL = "https://api.github.com/repos/voltcyclone/oss-back2base/releases/latest"
+const releaseURL = "https://api.github.com/repos/back2base/oss-back2base/releases/latest"
 
 type githubRelease struct {
 	TagName string         `json:"tag_name"`

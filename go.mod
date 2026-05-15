@@ -1,4 +1,4 @@
-module github.com/voltcyclone/oss-back2base
+module github.com/back2base/oss-back2base
 
 go 1.23.2
 

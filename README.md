@@ -24,7 +24,7 @@ This repository is the open-source slice: the Go CLI, the Docker container paylo
 ## Requirements
 
 - Docker (Desktop, Colima, or any compatible daemon)
-- Go 1.23+ (only needed to build from source; release binaries are available on the [Releases page](https://github.com/VoltCyclone/oss-back2base/releases))
+- Go 1.23+ (only needed to build from source; release binaries are available on the [Releases page](https://github.com/back2base/oss-back2base/releases))
 - An Anthropic credential — either a Claude Code OAuth token (uses your subscription) or an `ANTHROPIC_API_KEY`
 
 ## Quickstart

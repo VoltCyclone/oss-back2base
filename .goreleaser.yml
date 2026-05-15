@@ -29,9 +29,9 @@ archives:
 nfpms:
   - id: oss-back2base
     package_name: oss-back2base
-    vendor: voltcyclone
-    homepage: "https://github.com/voltcyclone/oss-back2base"
-    maintainer: "voltcyclone"
+    vendor: back2base
+    homepage: "https://github.com/back2base/oss-back2base"
+    maintainer: "back2base"
     description: "Containerized Claude Code with a configurable MCP server registry (OSS)"
     license: MIT
     formats:
