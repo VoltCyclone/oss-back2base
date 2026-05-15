@@ -29,3 +29,7 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # PAT with `repo` scope on back2base/homebrew-back2base.
+          # When absent, goreleaser skips the brew publish via the
+          # disable: condition in .goreleaser.yml; binaries still ship.
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}

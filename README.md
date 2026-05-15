@@ -24,20 +24,42 @@ This repository is the open-source slice: the Go CLI, the Docker container paylo
 ## Requirements
 
 - Docker (Desktop, Colima, or any compatible daemon)
-- Go 1.23+ (only needed to build from source; release binaries are available on the [Releases page](https://github.com/back2base/oss-back2base/releases))
 - An Anthropic credential — either a Claude Code OAuth token (uses your subscription) or an `ANTHROPIC_API_KEY`
+
+## Install
+
+### Homebrew (macOS / Linux)
+
+```bash
+brew install back2base/back2base/oss-back2base
+```
+
+### Debian / Ubuntu
+
+Download `oss-back2base_<version>_linux_<arch>.deb` from the [Releases page](https://github.com/back2base/oss-back2base/releases) and install it:
+
+```bash
+sudo dpkg -i oss-back2base_*_linux_amd64.deb
+```
+
+### Pre-built binary
+
+Grab the matching tarball from the [Releases page](https://github.com/back2base/oss-back2base/releases), extract `oss-back2base`, and move it onto your `$PATH`.
+
+### From source
+
+```bash
+go build -o oss-back2base .   # requires Go 1.23+
+```
 
 ## Quickstart
 
 ```bash
-# 1. Build (or download a release binary from the Releases page)
-go build -o oss-back2base .
-
-# 2. Authenticate. Either:
+# 1. Authenticate. Either:
 claude setup-token                                     # OAuth, uses your Claude subscription
 # …or grab an Anthropic API key from https://console.anthropic.com
 
-# 3. Drop the credential into the env file
+# 2. Drop the credential into the env file
 mkdir -p ~/.config/back2base
 cat > ~/.config/back2base/env <<'EOF'
 BACK2BASE_CLAUDE_CODE_OAUTH_TOKEN=<paste-token-here>
@@ -45,9 +67,9 @@ BACK2BASE_CLAUDE_CODE_OAUTH_TOKEN=<paste-token-here>
 # BACK2BASE_ANTHROPIC_API_KEY=sk-ant-...
 EOF
 
-# 4. Launch. First run extracts the container payload to ~/.local/share/back2base
+# 3. Launch. First run extracts the container payload to ~/.local/share/back2base
 #    and builds the image (~500 MB pull + a thin local layer).
-./oss-back2base
+oss-back2base
 ```
 
 Other useful entry points:

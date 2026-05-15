@@ -26,6 +26,44 @@ archives:
     formats: ['tar.gz']
     name_template: "oss-back2base_{{ .Os }}_{{ .Arch }}"
 
+brews:
+  - name: oss-back2base
+    # Publish into the shared back2base tap. Lives alongside the
+    # proprietary `back2base` formula; users install with
+    #   brew install back2base/back2base/oss-back2base
+    repository:
+      owner: back2base
+      name: homebrew-back2base
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/back2base/oss-back2base"
+    description: "Containerized Claude Code with a configurable MCP server registry (OSS)"
+    license: "MIT"
+    # Skip the formula push when the tap PAT isn't configured (e.g.
+    # community forks releasing under their own tap or local snapshot
+    # builds). Binaries + .deb still publish.
+    skip_upload: "{{ if eq .Env.HOMEBREW_TAP_GITHUB_TOKEN \"\" }}true{{ else }}false{{ end }}"
+    install: |
+      bin.install "oss-back2base"
+    caveats: |
+      oss-back2base launches a containerized Claude Code session.
+
+      First run extracts the embedded container payload to
+      ~/.local/share/back2base and builds the image (~500 MB pull
+      plus a thin local layer). To pre-fetch the base image:
+
+        docker pull ramseymcgrath/back2base-base:latest
+        oss-back2base build
+
+      Drop your Anthropic credentials into ~/.config/back2base/env
+      before the first launch. See env.example in the repo for the
+      full catalog.
+    test: |
+      system "#{bin}/oss-back2base", "version"
+    dependencies:
+      - name: docker
+        type: optional
+
 nfpms:
   - id: oss-back2base
     package_name: oss-back2base
