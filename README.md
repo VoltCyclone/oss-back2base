@@ -51,9 +51,9 @@ An Anthropic API key works too — set `BACK2BASE_ANTHROPIC_API_KEY` in `~/.conf
 
 ## Repository layout
 
-- `*.go` at the repo root — the Cobra-based CLI, flat `package main`. `assets.go` embeds the container payload via `//go:embed all:back2base-container`.
-- `back2base-container/` — the shipped Docker image payload, extracted to `$BACK2BASE_HOME` on first run.
-- `.github/workflows/` — CI and goreleaser release pipeline.
+- `*.go` at the repo root — the CLI source.
+- `back2base-container/` — the Docker image payload, extracted to `$BACK2BASE_HOME` on first run.
+- `.github/workflows/` — CI and release pipeline.
 
 ## License
 
